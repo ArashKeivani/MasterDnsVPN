@@ -25,6 +25,79 @@ import (
 	"masterdnsvpn-go/internal/version"
 )
 
+func main() {
+	opts, overrides, err := parseClientCLIArgs(os.Args[1:], os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n\n", err)
+		fs, _, _, fsErr := newClientFlagSet(os.Stdout)
+		if fsErr == nil {
+			fs.Usage()
+		}
+		os.Exit(2)
+	}
+
+	if opts.showHelp {
+		fs, _, _, err := newClientFlagSet(os.Stdout)
+		if err == nil {
+			fs.Usage()
+		}
+		return
+	}
+
+	if opts.showVersion {
+		fmt.Printf("MasterDnsVPN Client Version: %s\n", version.GetVersion())
+		return
+	}
+
+	resolvedConfigPath := runtimepath.Resolve(opts.configPath)
+
+	var app *client.Client
+	switch {
+	case opts.jsonBase64 != "":
+		cfg, err := config.LoadClientConfigFromJSONBase64WithOverrides(opts.jsonBase64, overrides)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Client startup failed: %v\n", err)
+			waitForExitInput()
+			os.Exit(1)
+		}
+		app, err = client.BootstrapLoadedConfig(cfg, opts.logPath)
+		resolvedConfigPath = cfg.ConfigPath
+	case opts.jsonPath != "":
+		app, err = client.Bootstrap(runtimepath.Resolve(opts.jsonPath), opts.logPath, overrides)
+		resolvedConfigPath = runtimepath.Resolve(opts.jsonPath)
+	default:
+		app, err = client.Bootstrap(resolvedConfigPath, opts.logPath, overrides)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Client startup failed: %v\n", err)
+		waitForExitInput()
+		os.Exit(1)
+	}
+
+	app.PrintBanner()
+
+	log := app.Log()
+	if log != nil {
+		log.Infof("\U0001F680 <green>MasterDnsVPN Client Started</green>")
+		log.Infof("\U0001F4C4 <green>Configuration loaded from: <cyan>%s</cyan></green>", resolvedConfigPath)
+		log.Infof("\U0001F5C2  <green>Connection Catalog: <cyan>%d</cyan> domain-resolver pairs</green>", app.Balancer().TotalCount())
+	}
+
+	// Wait for termination signal
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := app.Run(sigCtx); err != nil {
+		if log != nil {
+			log.Errorf("Runtime error: %v", err)
+		}
+	}
+
+	if log != nil {
+		log.Infof("\U0001F6D1 <red>Shutting down...</red>")
+	}
+}
+
 func samePath(a string, b string) bool {
 	if a == "" || b == "" {
 		return false
@@ -188,77 +261,4 @@ func parseClientCLIArgs(args []string, output io.Writer) (*clientCLIOptions, con
 	}
 
 	return opts, overrides, nil
-}
-
-func main() {
-	opts, overrides, err := parseClientCLIArgs(os.Args[1:], os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n\n", err)
-		fs, _, _, fsErr := newClientFlagSet(os.Stdout)
-		if fsErr == nil {
-			fs.Usage()
-		}
-		os.Exit(2)
-	}
-
-	if opts.showHelp {
-		fs, _, _, err := newClientFlagSet(os.Stdout)
-		if err == nil {
-			fs.Usage()
-		}
-		return
-	}
-
-	if opts.showVersion {
-		fmt.Printf("MasterDnsVPN Client Version: %s\n", version.GetVersion())
-		return
-	}
-
-	resolvedConfigPath := runtimepath.Resolve(opts.configPath)
-
-	var app *client.Client
-	switch {
-	case opts.jsonBase64 != "":
-		cfg, err := config.LoadClientConfigFromJSONBase64WithOverrides(opts.jsonBase64, overrides)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Client startup failed: %v\n", err)
-			waitForExitInput()
-			os.Exit(1)
-		}
-		app, err = client.BootstrapLoadedConfig(cfg, opts.logPath)
-		resolvedConfigPath = cfg.ConfigPath
-	case opts.jsonPath != "":
-		app, err = client.Bootstrap(runtimepath.Resolve(opts.jsonPath), opts.logPath, overrides)
-		resolvedConfigPath = runtimepath.Resolve(opts.jsonPath)
-	default:
-		app, err = client.Bootstrap(resolvedConfigPath, opts.logPath, overrides)
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Client startup failed: %v\n", err)
-		waitForExitInput()
-		os.Exit(1)
-	}
-
-	app.PrintBanner()
-
-	log := app.Log()
-	if log != nil {
-		log.Infof("\U0001F680 <green>MasterDnsVPN Client Started</green>")
-		log.Infof("\U0001F4C4 <green>Configuration loaded from: <cyan>%s</cyan></green>", resolvedConfigPath)
-		log.Infof("\U0001F5C2  <green>Connection Catalog: <cyan>%d</cyan> domain-resolver pairs</green>", app.Balancer().TotalCount())
-	}
-
-	// Wait for termination signal
-	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := app.Run(sigCtx); err != nil {
-		if log != nil {
-			log.Errorf("Runtime error: %v", err)
-		}
-	}
-
-	if log != nil {
-		log.Infof("\U0001F6D1 <red>Shutting down...</red>")
-	}
 }

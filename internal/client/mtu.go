@@ -331,39 +331,63 @@ func (c *Client) RunInitialMTUTests(ctx context.Context) error {
 
 	counters := &mtuScanCounters{}
 	if workerCount <= 1 {
+		validConnections := 0
 		for idx := range scanConnections {
 			if err := ctx.Err(); err != nil {
 				return nil
 			}
 			conn := scanConnections[idx]
-			c.runConnectionMTUTest(ctx, conn, idx+1, len(scanConnections), uploadCaps[conn.Domain], counters)
+			valid := c.processConnectionMTU(ctx, conn, idx+1, len(scanConnections), uploadCaps[conn.Domain], counters)
+			if valid {
+				validConnections += 1
+			}
+
+			if validConnections >= c.cfg.MinimumValidConnections {
+				break
+			}
 		}
 	} else {
+		parentCtx := ctx
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		jobs := make(chan int, len(scanConnections))
-		var wg sync.WaitGroup
+		var (
+			wg               sync.WaitGroup
+			validConnections atomic.Int32
+		)
 		for range workerCount {
 			wg.Go(func() {
 				for idx := range jobs {
-					if err := ctx.Err(); err != nil {
+					if ctx.Err() != nil {
 						return
 					}
 					conn := scanConnections[idx]
-					c.runConnectionMTUTest(ctx, conn, idx+1, len(scanConnections), uploadCaps[conn.Domain], counters)
+					valid := c.processConnectionMTU(ctx, conn, idx+1, len(scanConnections), uploadCaps[conn.Domain], counters)
+					if valid {
+						if validConnections.Add(1) >= int32(c.cfg.MinimumValidConnections) {
+							cancel()
+							return
+						}
+					}
 				}
 			})
 		}
 
+	loop:
 		for idx := range scanConnections {
 			select {
 			case <-ctx.Done():
-				close(jobs)
-				wg.Wait()
-				return nil
+				break loop
 			case jobs <- idx:
 			}
 		}
+
 		close(jobs)
 		wg.Wait()
+
+		if parentCtx.Err() != nil {
+			return nil
+		}
 	}
 
 	activeConns := c.balancer.ActiveConnections()
@@ -780,9 +804,16 @@ func (c *Client) confirmResolverDown(conn *Connection, window time.Duration) boo
 	return true
 }
 
-func (c *Client) runConnectionMTUTest(ctx context.Context, conn Connection, serverID int, total int, maxUploadPayload int, counters *mtuScanCounters) {
-	if conn.Key == "" {
-		return
+func (c *Client) processConnectionMTU(
+	ctx context.Context,
+	conn Connection,
+	serverID int,
+	total int,
+	maxUploadPayload int,
+	counters *mtuScanCounters,
+) bool {
+	if conn.Key == "" || counters == nil {
+		return false
 	}
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -824,9 +855,6 @@ func (c *Client) runConnectionMTUTest(ctx context.Context, conn Connection, serv
 	}
 
 	result, reason := c.probeConnectionMTU(ctx, conn, maxUploadPayload)
-	if counters == nil {
-		return
-	}
 
 	decision := buildMTUDecision(result, reason)
 	c.applyMTUDecision(conn.Key, decision)
@@ -847,7 +875,7 @@ func (c *Client) runConnectionMTUTest(ctx context.Context, conn Connection, serv
 				rejectedNow,
 			)
 		}
-		return
+		return false
 	case mtuRejectDownload:
 		completed := counters.completed.Add(1)
 		rejectedNow := counters.rejectUpload.Load() + counters.rejectDownload.Add(1)
@@ -863,7 +891,7 @@ func (c *Client) runConnectionMTUTest(ctx context.Context, conn Connection, serv
 				rejectedNow,
 			)
 		}
-		return
+		return false
 	}
 
 	completed := counters.completed.Add(1)
@@ -885,6 +913,8 @@ func (c *Client) runConnectionMTUTest(ctx context.Context, conn Connection, serv
 	if acceptedConn, ok := c.balancer.GetConnectionByKey(conn.Key); ok {
 		c.appendMTUSuccessLine(&acceptedConn)
 	}
+
+	return true
 }
 
 func (c *Client) probeConnectionMTU(ctx context.Context, conn Connection, maxUploadPayload int) (mtuConnectionProbeResult, mtuRejectReason) {
@@ -1559,18 +1589,4 @@ func mtuCryptoOverhead(method int) int {
 	default:
 		return 0
 	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
