@@ -342,7 +342,7 @@ func (c *Client) RunInitialMTUTests(ctx context.Context) error {
 				validConnections += 1
 			}
 
-			if validConnections >= c.cfg.MinimumValidConnections {
+			if c.cfg.MinimumValidConnections > 0 && validConnections >= c.cfg.MinimumValidConnections {
 				break
 			}
 		}
@@ -364,7 +364,7 @@ func (c *Client) RunInitialMTUTests(ctx context.Context) error {
 					conn := scanConnections[idx]
 					valid := c.processConnectionMTU(ctx, conn, idx+1, len(scanConnections), uploadCaps[conn.Domain], counters)
 					if valid {
-						if validConnections.Add(1) >= int32(c.cfg.MinimumValidConnections) {
+						if c.cfg.MinimumValidConnections > 0 && validConnections.Add(1) >= int32(c.cfg.MinimumValidConnections) {
 							cancel()
 							return
 						}
