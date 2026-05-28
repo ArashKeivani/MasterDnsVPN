@@ -322,26 +322,21 @@ func parseName(data []byte, offset int) (string, int, error) {
 }
 
 func writeLowerASCIILabel(dst *strings.Builder, label []byte) {
-	upperIndex := -1
-	for i := range label {
-		if label[i] >= 'A' && label[i] <= 'Z' {
-			upperIndex = i
-			break
-		}
-	}
+	for i, ch := range label {
+		if 'A' <= ch && ch <= 'Z' {
+			dst.Write(label[:i])
 
-	if upperIndex == -1 {
-		dst.Write(label)
-		return
-	}
-
-	dst.Write(label[:upperIndex])
-	for i := upperIndex; i < len(label); i++ {
-		ch := label[i]
-		if ch >= 'A' && ch <= 'Z' {
 			dst.WriteByte(ch + ('a' - 'A'))
-		} else {
-			dst.WriteByte(ch)
+
+			for _, ch := range label[i+1:] {
+				if 'A' <= ch && ch <= 'Z' {
+					ch += 'a' - 'A'
+				}
+				dst.WriteByte(ch)
+			}
+			return
 		}
 	}
+
+	dst.Write(label)
 }
