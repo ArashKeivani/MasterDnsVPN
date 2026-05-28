@@ -420,24 +420,20 @@ func summarizeRecordTypes(records []ResourceRecord) string {
 }
 
 func CalculateMaxEncodedQNameChars(domain string) int {
-	domainLen := len(strings.TrimSuffix(strings.TrimSpace(domain), "."))
+	normalizedDomain := strings.TrimSuffix(strings.TrimSpace(domain), ".")
+	domainLen := len(normalizedDomain)
+
 	if domainLen <= 0 {
 		return maxDNSNameLen
 	}
 
-	low := 0
-	high := maxDNSNameLen
-	best := 0
-	for low <= high {
-		mid := (low + high) / 2
-		if encodedQNameLen(mid, domainLen) <= maxDNSNameLen {
-			best = mid
-			low = mid + 1
-		} else {
-			high = mid - 1
-		}
-	}
-	return best
+	remainingChars := (maxDNSNameLen - 1) - domainLen
+
+	// Every 63 payload characters require one extra '.' split separator.
+	// So 63 payload chars consume 64 total chars
+	requiredSplitDots := remainingChars / (maxDNSLabelLen + 1)
+
+	return max(remainingChars-requiredSplitDots, 0)
 }
 
 func EncodeDataToLabels(data string) string {
