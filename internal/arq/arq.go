@@ -2185,7 +2185,7 @@ func (a *ARQ) handleTrackedPacketTTLExpiry(packetType uint8, reason string) {
 		return
 	}
 
-	a.Close(reason, CloseOptions{SendRST: true})
+	a.Close(reason, CloseOptions{Force: true})
 }
 
 func (a *ARQ) handleTrackedTerminalAck(originPtype uint8) bool {
@@ -2360,7 +2360,7 @@ func (a *ARQ) checkRetransmits() {
 				ttlExpired = true
 				break
 			}
-		} else if now.Sub(info.CreatedAt) >= a.dataPacketTTL && info.Retries >= a.maxDataRetries {
+		} else if now.Sub(info.CreatedAt) >= a.dataPacketTTL || info.Retries >= a.maxDataRetries {
 			retryExceeded = true
 			break
 		}
@@ -2387,7 +2387,7 @@ func (a *ARQ) checkRetransmits() {
 		return
 	}
 	if retryExceeded {
-		a.Close("Max retransmissions exceeded", CloseOptions{SendRST: true})
+		a.Close("Max retransmissions exceeded", CloseOptions{Force: true})
 		return
 	}
 
@@ -2537,7 +2537,7 @@ func (a *ARQ) handleTerminalRetransmitState(now time.Time) bool {
 		if shouldClose || shouldAbort {
 			a.settleTerminalDrain()
 		} else if shouldAbortEarly {
-			a.Close("Deferred drain stalled after resend queue pressure", CloseOptions{SendRST: true})
+			a.Close("Deferred drain stalled after resend queue pressure", CloseOptions{Force: true})
 		}
 
 		return a.isClosed()
@@ -2553,7 +2553,7 @@ func (a *ARQ) handleTerminalRetransmitState(now time.Time) bool {
 		}
 
 		if waitingFor == Enums.PACKET_STREAM_CLOSE_READ || waitingFor == Enums.PACKET_STREAM_CLOSE_WRITE {
-			a.Close("Close handshake ACK wait timeout", CloseOptions{SendRST: true})
+			a.Close("Close handshake ACK wait timeout", CloseOptions{Force: true})
 			return false
 		}
 
@@ -2602,7 +2602,7 @@ func (a *ARQ) handleTerminalRetransmitState(now time.Time) bool {
 		}
 
 		a.mu.Unlock()
-		a.Close("Stream Inactivity Timeout (Dead)", CloseOptions{SendRST: true})
+		a.Close("Stream Inactivity Timeout (Dead)", CloseOptions{Force: true})
 		return true
 	}
 
