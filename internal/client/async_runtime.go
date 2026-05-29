@@ -408,7 +408,7 @@ func (c *Client) asyncStreamCleanupWorker(ctx context.Context) {
 			}
 
 			c.streamsMu.RLock()
-			streams := make([]*Stream_client, 0, len(c.active_streams))
+			streams := make([]*StreamClient, 0, len(c.active_streams))
 			for _, s := range c.active_streams {
 				if s != nil {
 					streams = append(streams, s)

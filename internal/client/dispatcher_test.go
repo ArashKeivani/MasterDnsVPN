@@ -15,9 +15,9 @@ func TestAsyncStreamDispatcherDrainsQueuedWorkAfterSingleWake(t *testing.T) {
 	}
 
 	c.plannerQueue = make(chan plannerTask, 4)
-	c.active_streams = make(map[uint16]*Stream_client)
+	c.active_streams = make(map[uint16]*StreamClient)
 
-	stream := &Stream_client{
+	stream := &StreamClient{
 		client:   c,
 		StreamID: 1,
 		txQueue:  mlq.New[*clientStreamTXPacket](8),
@@ -62,7 +62,7 @@ func TestAsyncStreamDispatcherWakesOnPlannerQueueSpaceSignal(t *testing.T) {
 	c.cfg.DispatcherIdlePollIntervalSeconds = 0.01
 	c.dispatchSignal = make(chan struct{}, 1)
 	c.plannerQueueSpaceSignal = make(chan struct{}, 1)
-	c.active_streams = make(map[uint16]*Stream_client)
+	c.active_streams = make(map[uint16]*StreamClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

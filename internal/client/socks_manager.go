@@ -325,7 +325,7 @@ func readNullTerminatedSocksField(conn net.Conn) ([]byte, error) {
 }
 
 func (c *Client) handleSOCKSConnect(ctx context.Context, conn net.Conn, addr string, port uint16, atyp byte, socksVersion byte) {
-	streamID, ok := c.get_new_stream_id()
+	streamID, ok := c.getNewStreamId()
 	if !ok {
 		c.log.Errorf("❌ <red>Failed to get new Stream ID for SOCKS CONNECT</red>")
 		if socksVersion == SOCKS4_VERSION {
@@ -379,7 +379,7 @@ func (c *Client) handleSOCKSConnect(ctx context.Context, conn net.Conn, addr str
 	binary.BigEndian.PutUint16(pBuf, port)
 	targetPayload = append(targetPayload, pBuf...)
 
-	s := c.new_stream(streamID, conn, nil)
+	s := c.newStream(streamID, conn, nil)
 	if s == nil {
 		if socksVersion == SOCKS4_VERSION {
 			_ = c.sendSocks4Reply(conn, false)
@@ -427,7 +427,7 @@ func (c *Client) writeSocksConnectResult(streamID uint16, rep byte) error {
 	return c.writeSocksConnectResultLocked(s, rep)
 }
 
-func (c *Client) writeSocksConnectResultLocked(s *Stream_client, rep byte) error {
+func (c *Client) writeSocksConnectResultLocked(s *StreamClient, rep byte) error {
 	if s == nil || s.NetConn == nil {
 		return errLateSocksResult
 	}

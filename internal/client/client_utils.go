@@ -224,7 +224,7 @@ func (c *Client) clearOrphanResets() {
 	c.orphanQueue.Clear(nil)
 }
 
-func (c *Client) queueImmediateControlAck(stream *Stream_client, packet VpnProto.Packet) bool {
+func (c *Client) queueImmediateControlAck(stream *StreamClient, packet VpnProto.Packet) bool {
 	if c == nil {
 		return false
 	}
@@ -252,7 +252,7 @@ func (c *Client) queueImmediateControlAck(stream *Stream_client, packet VpnProto
 	return ok
 }
 
-func (c *Client) consumeInboundStreamAck(packetType uint8, packet VpnProto.Packet, s *Stream_client) bool {
+func (c *Client) consumeInboundStreamAck(packetType uint8, packet VpnProto.Packet, s *StreamClient) bool {
 	if c == nil || s == nil {
 		return false
 	}
@@ -292,7 +292,7 @@ func (c *Client) consumeInboundStreamAck(packetType uint8, packet VpnProto.Packe
 	return false
 }
 
-func (c *Client) getStream(streamID uint16) (*Stream_client, bool) {
+func (c *Client) getStream(streamID uint16) (*StreamClient, bool) {
 	c.streamsMu.RLock()
 	s, ok := c.active_streams[streamID]
 	c.streamsMu.RUnlock()

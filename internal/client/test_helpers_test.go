@@ -9,7 +9,7 @@ import (
 
 func buildTestClientWithResolvers(cfg config.ClientConfig, keys ...string) *Client {
 	c := New(cfg, nil, nil)
-	c.active_streams = make(map[uint16]*Stream_client)
+	c.active_streams = make(map[uint16]*StreamClient)
 
 	connections := make([]Connection, 0, len(keys))
 	ptrs := make([]*Connection, 0, len(keys))

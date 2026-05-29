@@ -38,9 +38,9 @@ const (
 	streamStatusClosed          = "CLOSED"
 )
 
-// Stream_client represents a single stream's data structure, mirroring the Python version's
+// StreamClient represents a single stream's data structure, mirroring the Python version's
 // 'active_streams' dictionary elements.
-type Stream_client struct {
+type StreamClient struct {
 	client *Client
 
 	StreamID           uint16
@@ -70,8 +70,8 @@ type Stream_client struct {
 	cleanupOnce   sync.Once
 }
 
-// get_new_stream_id finds the next available stream ID using a circular counter (1-65535).
-func (c *Client) get_new_stream_id() (uint16, bool) {
+// getNewStreamId finds the next available stream ID using a circular counter (1-65535).
+func (c *Client) getNewStreamId() (uint16, bool) {
 	c.streamsMu.Lock()
 	defer c.streamsMu.Unlock()
 
@@ -105,11 +105,11 @@ func (c *Client) get_new_stream_id() (uint16, bool) {
 	}
 }
 
-// new_stream initializes a new Stream_client with default values.
-func (c *Client) new_stream(streamID uint16, conn net.Conn, targetPayload []byte) *Stream_client {
+// newStream initializes a new Stream_client with default values.
+func (c *Client) newStream(streamID uint16, conn net.Conn, targetPayload []byte) *StreamClient {
 	now := time.Now()
 
-	s := &Stream_client{
+	s := &StreamClient{
 		client:             c,
 		StreamID:           streamID,
 		NetConn:            conn,
@@ -160,7 +160,7 @@ func (c *Client) new_stream(streamID uint16, conn net.Conn, targetPayload []byte
 
 	c.streamsMu.Lock()
 	if c.active_streams == nil {
-		c.active_streams = make(map[uint16]*Stream_client)
+		c.active_streams = make(map[uint16]*StreamClient)
 	}
 	c.active_streams[streamID] = s
 	c.streamsMu.Unlock()
@@ -183,7 +183,7 @@ func (c *Client) new_stream(streamID uint16, conn net.Conn, targetPayload []byte
 }
 
 // PushTXPacket adds a packet to the appropriate priority queue if it's not a duplicate.
-func (s *Stream_client) PushTXPacket(priority int, packetType uint8, sequenceNum uint16, fragmentID uint8, totalFragments uint8, compressionType uint8, ttl time.Duration, payload []byte) bool {
+func (s *StreamClient) PushTXPacket(priority int, packetType uint8, sequenceNum uint16, fragmentID uint8, totalFragments uint8, compressionType uint8, ttl time.Duration, payload []byte) bool {
 	dataKey := Enums.PacketIdentityKey(s.StreamID, Enums.PACKET_STREAM_DATA, sequenceNum, fragmentID)
 	resendKey := Enums.PacketIdentityKey(s.StreamID, Enums.PACKET_STREAM_RESEND, sequenceNum, fragmentID)
 	key := Enums.PacketIdentityKey(s.StreamID, packetType, sequenceNum, fragmentID)
@@ -258,7 +258,7 @@ func (s *Stream_client) PushTXPacket(priority int, packetType uint8, sequenceNum
 }
 
 // PopNextTXPacket retrieves the highest priority packet from the queues.
-func (s *Stream_client) PopNextTXPacket() (*clientStreamTXPacket, int, bool) {
+func (s *StreamClient) PopNextTXPacket() (*clientStreamTXPacket, int, bool) {
 	// Delegate to MLQ
 	packet, priority, ok := s.txQueue.Pop()
 	if ok && packet != nil {
@@ -268,7 +268,7 @@ func (s *Stream_client) PopNextTXPacket() (*clientStreamTXPacket, int, bool) {
 	return packet, priority, ok
 }
 
-func (s *Stream_client) NoteTXPacketDequeued(packet *clientStreamTXPacket) {
+func (s *StreamClient) NoteTXPacketDequeued(packet *clientStreamTXPacket) {
 	if s == nil || packet == nil {
 		return
 	}
@@ -283,12 +283,12 @@ func (s *Stream_client) NoteTXPacketDequeued(packet *clientStreamTXPacket) {
 }
 
 // GetQueuedPacket checks if a packet exists in any priority queue in O(1).
-func (s *Stream_client) GetQueuedPacket(packetType uint8, sequenceNum uint16, fragmentID uint8) (*clientStreamTXPacket, bool) {
+func (s *StreamClient) GetQueuedPacket(packetType uint8, sequenceNum uint16, fragmentID uint8) (*clientStreamTXPacket, bool) {
 	key := Enums.PacketIdentityKey(s.StreamID, packetType, sequenceNum, fragmentID)
 	return s.txQueue.Get(key)
 }
 
-func (s *Stream_client) RemoveQueuedData(sequenceNum uint16) bool {
+func (s *StreamClient) RemoveQueuedData(sequenceNum uint16) bool {
 	if s == nil || s.txQueue == nil {
 		return false
 	}
@@ -311,7 +311,7 @@ func (s *Stream_client) RemoveQueuedData(sequenceNum uint16) bool {
 	return removedAny
 }
 
-func (s *Stream_client) RemoveQueuedDataNack(sequenceNum uint16) bool {
+func (s *StreamClient) RemoveQueuedDataNack(sequenceNum uint16) bool {
 	if s == nil || s.txQueue == nil {
 		return false
 	}
@@ -332,7 +332,7 @@ func (s *Stream_client) RemoveQueuedDataNack(sequenceNum uint16) bool {
 	return true
 }
 
-func (s *Stream_client) cleanupResources() {
+func (s *StreamClient) cleanupResources() {
 	if s.NetConn != nil {
 		_ = s.NetConn.Close()
 	}
@@ -348,7 +348,7 @@ func (s *Stream_client) cleanupResources() {
 	s.SetStatus(streamStatusClosed)
 }
 
-func (s *Stream_client) finalizeAfterARQClose() {
+func (s *StreamClient) finalizeAfterARQClose() {
 	if s == nil {
 		return
 	}
@@ -368,7 +368,7 @@ func (s *Stream_client) finalizeAfterARQClose() {
 	})
 }
 
-func (s *Stream_client) OnARQClosed(reason string) {
+func (s *StreamClient) OnARQClosed(reason string) {
 	if s != nil && s.client != nil {
 		s.client.rememberClosedStream(s.StreamID, reason, time.Now())
 	}
@@ -376,7 +376,7 @@ func (s *Stream_client) OnARQClosed(reason string) {
 }
 
 // Close gracefully shuts down the stream and releases all resources.
-func (s *Stream_client) Close() {
+func (s *StreamClient) Close() {
 	if s.Stream != nil {
 		if a, ok := s.Stream.(*arq.ARQ); ok {
 			a.Close("Stream_client.Close cleanup", arq.CloseOptions{Force: true})
@@ -385,7 +385,7 @@ func (s *Stream_client) Close() {
 	s.finalizeAfterARQClose()
 }
 
-func (s *Stream_client) CloseStream(force bool, ttl time.Duration) {
+func (s *StreamClient) CloseStream(force bool, ttl time.Duration) {
 	if s == nil {
 		return
 	}
@@ -416,7 +416,7 @@ func (s *Stream_client) CloseStream(force bool, ttl time.Duration) {
 }
 
 // ReleaseTXPacket returns a packet to the pool.
-func (s *Stream_client) ReleaseTXPacket(p *clientStreamTXPacket) {
+func (s *StreamClient) ReleaseTXPacket(p *clientStreamTXPacket) {
 	if p == nil {
 		return
 	}
@@ -426,7 +426,7 @@ func (s *Stream_client) ReleaseTXPacket(p *clientStreamTXPacket) {
 	txPacketPool.Put(p)
 }
 
-func (s *Stream_client) SetStatus(status string) {
+func (s *StreamClient) SetStatus(status string) {
 	if s == nil {
 		return
 	}
@@ -435,7 +435,7 @@ func (s *Stream_client) SetStatus(status string) {
 	s.statusMu.Unlock()
 }
 
-func (s *Stream_client) StatusValue() string {
+func (s *StreamClient) StatusValue() string {
 	if s == nil {
 		return streamStatusClosed
 	}
@@ -445,7 +445,7 @@ func (s *Stream_client) StatusValue() string {
 	return status
 }
 
-func (s *Stream_client) MarkTerminal(now time.Time) {
+func (s *StreamClient) MarkTerminal(now time.Time) {
 	if s == nil {
 		return
 	}
@@ -456,7 +456,7 @@ func (s *Stream_client) MarkTerminal(now time.Time) {
 	s.statusMu.Unlock()
 }
 
-func (s *Stream_client) ClearTerminal() {
+func (s *StreamClient) ClearTerminal() {
 	if s == nil {
 		return
 	}
@@ -465,7 +465,7 @@ func (s *Stream_client) ClearTerminal() {
 	s.statusMu.Unlock()
 }
 
-func (s *Stream_client) TerminalSince() time.Time {
+func (s *StreamClient) TerminalSince() time.Time {
 	if s == nil {
 		return time.Time{}
 	}
@@ -567,7 +567,7 @@ func (c *Client) InitVirtualStream0() {
 	defer c.streamsMu.Unlock()
 
 	streamID := uint16(0)
-	s := &Stream_client{
+	s := &StreamClient{
 		client:     c,
 		StreamID:   streamID,
 		txQueue:    mlq.New[*clientStreamTXPacket](c.cfg.EffectiveStreamQueueInitialCapacity()),
@@ -614,11 +614,11 @@ func (c *Client) InitVirtualStream0() {
 // It finalizes streams locally so retransmit loops stop immediately.
 func (c *Client) CloseAllStreams() {
 	c.streamsMu.Lock()
-	streams := make([]*Stream_client, 0, len(c.active_streams))
+	streams := make([]*StreamClient, 0, len(c.active_streams))
 	for _, s := range c.active_streams {
 		streams = append(streams, s)
 	}
-	c.active_streams = make(map[uint16]*Stream_client)
+	c.active_streams = make(map[uint16]*StreamClient)
 	c.streamsMu.Unlock()
 	c.bumpStreamSetVersion()
 

@@ -107,7 +107,7 @@ type Client struct {
 
 	// Stream Management
 	streamsMu             sync.RWMutex
-	active_streams        map[uint16]*Stream_client
+	active_streams        map[uint16]*StreamClient
 	last_stream_id        uint16
 	streamSetVersion      atomic.Uint64
 	orphanQueue           *mlq.MultiLevelQueue[VpnProto.Packet]
@@ -189,7 +189,7 @@ type plannerTask struct {
 	dupCount  int
 	wasPacked bool
 	item      *clientStreamTXPacket
-	selected  *Stream_client
+	selected  *StreamClient
 }
 
 type encodedOutboundDatagram struct {
@@ -201,7 +201,7 @@ type encodedOutboundDatagram struct {
 type writerTask struct {
 	wasPacked bool
 	item      *clientStreamTXPacket
-	selected  *Stream_client
+	selected  *StreamClient
 	frames    []encodedOutboundDatagram
 }
 
@@ -280,7 +280,7 @@ func New(cfg config.ClientConfig, log *logger.Logger, codec *security.Codec) *Cl
 		plannerQueue:            make(chan plannerTask, max(24, cfg.RX_TX_Workers*24)),
 		encodedTXChannel:        make(chan writerTask, max(24, cfg.RX_TX_Workers*24)),
 		rxChannel:               make(chan asyncReadPacket, cfg.EffectiveRXChannelSize()),
-		active_streams:          make(map[uint16]*Stream_client),
+		active_streams:          make(map[uint16]*StreamClient),
 		recentlyClosedStreams:   make(map[uint16]time.Time),
 		recentlyClosedHeap:      make(recentlyClosedHeap, 0, 128),
 		dispatchSignal:          make(chan struct{}, 1),

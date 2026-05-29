@@ -11,7 +11,7 @@ func TestStreamZeroAllowsMultipleQueuedPingsWithDifferentSequence(t *testing.T) 
 	c := &Client{
 		dispatchSignal: make(chan struct{}, 8),
 	}
-	s := &Stream_client{
+	s := &StreamClient{
 		client:   c,
 		StreamID: 0,
 		txQueue:  mlq.New[*clientStreamTXPacket](16),
@@ -35,7 +35,7 @@ func TestPingQueueDropsWhenCongested(t *testing.T) {
 	c := &Client{
 		dispatchSignal: make(chan struct{}, 8),
 	}
-	s := &Stream_client{
+	s := &StreamClient{
 		client:   c,
 		StreamID: 0,
 		txQueue:  mlq.New[*clientStreamTXPacket](1024),

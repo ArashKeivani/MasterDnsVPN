@@ -20,7 +20,7 @@ import (
 var errLateStreamResult = errors.New("late stream result for closed or terminal local stream")
 
 func (c *Client) HandleTCPConnect(_ context.Context, conn net.Conn) {
-	streamID, ok := c.get_new_stream_id()
+	streamID, ok := c.getNewStreamId()
 	if !ok {
 		if conn != nil {
 			_ = conn.Close()
@@ -30,7 +30,7 @@ func (c *Client) HandleTCPConnect(_ context.Context, conn net.Conn) {
 
 	c.log.Infof("🔌 <green>New TCP CONNECT, Stream ID: <cyan>%d</cyan></green>", streamID)
 
-	s := c.new_stream(streamID, conn, nil)
+	s := c.newStream(streamID, conn, nil)
 	if s == nil {
 		if conn != nil {
 			_ = conn.Close()
@@ -57,7 +57,7 @@ func (c *Client) HandleTCPConnect(_ context.Context, conn net.Conn) {
 	)
 }
 
-func (c *Client) streamResultAllowed(s *Stream_client) bool {
+func (c *Client) streamResultAllowed(s *StreamClient) bool {
 	if s == nil || s.NetConn == nil {
 		return false
 	}
@@ -70,7 +70,7 @@ func (c *Client) streamResultAllowed(s *Stream_client) bool {
 	return s.TerminalSince().IsZero()
 }
 
-func (c *Client) handleStreamConnected(packet VpnProto.Packet, s *Stream_client, arqObj *arq.ARQ) error {
+func (c *Client) handleStreamConnected(packet VpnProto.Packet, s *StreamClient, arqObj *arq.ARQ) error {
 	if s == nil || arqObj == nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func (c *Client) handleStreamConnected(packet VpnProto.Packet, s *Stream_client,
 	return nil
 }
 
-func (c *Client) handleStreamConnectFail(_ VpnProto.Packet, s *Stream_client, arqObj *arq.ARQ) error {
+func (c *Client) handleStreamConnectFail(_ VpnProto.Packet, s *StreamClient, arqObj *arq.ARQ) error {
 	if s == nil || arqObj == nil {
 		return nil
 	}

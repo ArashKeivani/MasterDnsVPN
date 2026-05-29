@@ -43,7 +43,7 @@ func TestHandleTCPConnectQueuesStreamSyn(t *testing.T) {
 		t.Fatalf("expected one active stream, got %d", len(c.active_streams))
 	}
 
-	var stream *Stream_client
+	var stream *StreamClient
 	for _, s := range c.active_streams {
 		stream = s
 	}
@@ -77,7 +77,7 @@ func TestHandleStreamPacketConnectedEnablesTCPStreamIO(t *testing.T) {
 	local, remote := net.Pipe()
 	defer remote.Close()
 
-	stream := c.new_stream(1, local, nil)
+	stream := c.newStream(1, local, nil)
 	arqObj, ok := stream.Stream.(*arq.ARQ)
 	if !ok || arqObj == nil {
 		t.Fatal("expected ARQ-backed stream")
@@ -116,7 +116,7 @@ func TestHandleStreamPacketConnectFailClosesTCPStream(t *testing.T) {
 	local, remote := net.Pipe()
 	defer remote.Close()
 
-	stream := c.new_stream(2, local, nil)
+	stream := c.newStream(2, local, nil)
 	arqObj, ok := stream.Stream.(*arq.ARQ)
 	if !ok || arqObj == nil {
 		t.Fatal("expected ARQ-backed stream")
@@ -153,7 +153,7 @@ func TestHandleStreamPacketConnectFailClosesTCPStream(t *testing.T) {
 
 func TestRecentlyClosedCloseReadStreamSuppressesLateOrphanReset(t *testing.T) {
 	c := buildTCPTestClient()
-	stream := c.new_stream(32, nil, nil)
+	stream := c.newStream(32, nil, nil)
 
 	stream.OnARQClosed("close handshake completed")
 
@@ -183,7 +183,7 @@ func TestRecentlyClosedCloseReadStreamSuppressesLateOrphanReset(t *testing.T) {
 
 func TestRecentlyClosedResetStreamSuppressesLateOrphanReset(t *testing.T) {
 	c := buildTCPTestClient()
-	stream := c.new_stream(33, nil, nil)
+	stream := c.newStream(33, nil, nil)
 
 	stream.OnARQClosed("peer reset received")
 	c.rememberClosedStream(stream.StreamID, "RST acknowledged", time.Now())
@@ -214,7 +214,7 @@ func TestRecentlyClosedResetStreamSuppressesLateOrphanReset(t *testing.T) {
 
 func TestRecentlyClosedStreamStillAcksLateSocksConnected(t *testing.T) {
 	c := buildTCPTestClient()
-	stream := c.new_stream(41, nil, nil)
+	stream := c.newStream(41, nil, nil)
 
 	stream.OnARQClosed("close handshake completed")
 
@@ -254,7 +254,7 @@ func TestMissingUnknownStreamStillQueuesOrphanReset(t *testing.T) {
 
 func TestTerminalStreamDataQueuesRST(t *testing.T) {
 	c := buildTCPTestClient()
-	stream := c.new_stream(34, nil, nil)
+	stream := c.newStream(34, nil, nil)
 
 	stream.MarkTerminal(time.Now())
 	stream.SetStatus(streamStatusTimeWait)
@@ -285,7 +285,7 @@ func TestTerminalStreamDataQueuesRST(t *testing.T) {
 
 func TestRecentlyClosedStreamDataQueuesRST(t *testing.T) {
 	c := buildTCPTestClient()
-	stream := c.new_stream(42, nil, nil)
+	stream := c.newStream(42, nil, nil)
 	stream.OnARQClosed("close handshake completed")
 
 	handled := c.preprocessInboundPacket(VpnProto.Packet{
@@ -314,7 +314,7 @@ func TestForceCloseStreamQueuesRST(t *testing.T) {
 	local, remote := net.Pipe()
 	defer remote.Close()
 
-	stream := c.new_stream(35, local, nil)
+	stream := c.newStream(35, local, nil)
 
 	c.CloseStream(stream.StreamID, true, 0)
 
@@ -342,7 +342,7 @@ func TestGracefulCloseStreamQueuesCloseRead(t *testing.T) {
 	defer local.Close()
 	defer remote.Close()
 
-	stream := c.new_stream(36, local, nil)
+	stream := c.newStream(36, local, nil)
 
 	c.CloseStream(stream.StreamID, false, 0)
 
@@ -362,7 +362,7 @@ func TestLateSocksConnectedAfterCancellationQueuesRST(t *testing.T) {
 	local, remote := net.Pipe()
 	defer remote.Close()
 
-	stream := c.new_stream(37, local, nil)
+	stream := c.newStream(37, local, nil)
 	stream.MarkTerminal(time.Now())
 	stream.SetStatus(streamStatusCancelled)
 
@@ -391,7 +391,7 @@ func TestLateStreamConnectedAfterCancellationQueuesRST(t *testing.T) {
 	local, remote := net.Pipe()
 	defer remote.Close()
 
-	stream := c.new_stream(38, local, nil)
+	stream := c.newStream(38, local, nil)
 	stream.MarkTerminal(time.Now())
 	stream.SetStatus(streamStatusCancelled)
 
@@ -420,15 +420,15 @@ func TestCloseAllStreamsFinalizesLocally(t *testing.T) {
 
 	localA, remoteA := net.Pipe()
 	defer remoteA.Close()
-	streamA := c.new_stream(39, localA, nil)
+	streamA := c.newStream(39, localA, nil)
 
 	localB, remoteB := net.Pipe()
 	defer remoteB.Close()
-	streamB := c.new_stream(40, localB, nil)
+	streamB := c.newStream(40, localB, nil)
 
 	c.CloseAllStreams()
 
-	for _, stream := range []*Stream_client{streamA, streamB} {
+	for _, stream := range []*StreamClient{streamA, streamB} {
 		arqObj, ok := stream.Stream.(*arq.ARQ)
 		if !ok || arqObj == nil {
 			t.Fatalf("expected ARQ-backed stream %d", stream.StreamID)

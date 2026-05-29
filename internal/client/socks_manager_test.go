@@ -72,14 +72,14 @@ func TestSendSocks4ReplyFormatsResponse(t *testing.T) {
 
 func TestLateSocksResultDoesNotReactivateCancelledStream(t *testing.T) {
 	c := &Client{
-		active_streams: make(map[uint16]*Stream_client),
+		active_streams: make(map[uint16]*StreamClient),
 	}
 
 	server, clientConn := net.Pipe()
 	defer server.Close()
 	defer clientConn.Close()
 
-	s := &Stream_client{
+	s := &StreamClient{
 		client:            c,
 		StreamID:          7,
 		LocalSocksVersion: SOCKS5_VERSION,

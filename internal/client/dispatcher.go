@@ -26,7 +26,7 @@ func (c *Client) asyncStreamDispatcher(ctx context.Context) {
 	var rrCursor int32 = -1
 	var cachedVersion uint64
 	var cachedIDs []int32
-	var cachedStreams map[uint16]*Stream_client
+	var cachedStreams map[uint16]*StreamClient
 	idlePoll := c.cfg.DispatcherIdlePollInterval()
 	idleTimer := time.NewTimer(idlePoll)
 	defer idleTimer.Stop()
@@ -82,7 +82,7 @@ func (c *Client) asyncStreamDispatcher(ctx context.Context) {
 			c.streamsMu.RLock()
 			streamCount := len(c.active_streams)
 			ids := make([]int32, 0, streamCount+1)
-			streams := make(map[uint16]*Stream_client, streamCount)
+			streams := make(map[uint16]*StreamClient, streamCount)
 			for id, stream := range c.active_streams {
 				ids = append(ids, int32(id))
 				streams[id] = stream
@@ -108,7 +108,7 @@ func (c *Client) asyncStreamDispatcher(ctx context.Context) {
 			continue
 		}
 
-		var selected *Stream_client
+		var selected *StreamClient
 		var peekedItem *clientStreamTXPacket
 		var peekedOK bool
 		var selectedStreamID uint16
@@ -390,7 +390,7 @@ func (c *Client) asyncStreamDispatcher(ctx context.Context) {
 	}
 }
 
-func (c *Client) shouldTransmitQueuedStreamPacket(stream *Stream_client, item *clientStreamTXPacket) bool {
+func (c *Client) shouldTransmitQueuedStreamPacket(stream *StreamClient, item *clientStreamTXPacket) bool {
 	if c == nil || stream == nil || item == nil {
 		return false
 	}

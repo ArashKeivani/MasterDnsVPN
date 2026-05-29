@@ -178,7 +178,7 @@ func TestDrainQueues(t *testing.T) {
 
 func TestApplyPlannerNoConnectionPolicyDropsControlTask(t *testing.T) {
 	c := createTestClient(t)
-	stream := &Stream_client{client: c, StreamID: 9}
+	stream := &StreamClient{client: c, StreamID: 9}
 	item := &clientStreamTXPacket{
 		PacketType: Enums.PACKET_STREAM_SYN,
 		Payload:    []byte("syn"),
@@ -197,7 +197,7 @@ func TestApplyPlannerNoConnectionPolicyDropsControlTask(t *testing.T) {
 
 func TestApplyPlannerNoConnectionPolicyRequeuesDataTask(t *testing.T) {
 	c := createTestClient(t)
-	stream := &Stream_client{
+	stream := &StreamClient{
 		client:   c,
 		StreamID: 10,
 		txQueue:  mlq.New[*clientStreamTXPacket](8),
@@ -292,7 +292,7 @@ func TestAsyncStreamCleanupWorker(t *testing.T) {
 	defer cancel()
 
 	c.streamsMu.Lock()
-	stream := &Stream_client{
+	stream := &StreamClient{
 		StreamID: 1,
 	}
 	a := arq.NewARQ(1, 1, nil, nil, 1400, nil, arq.Config{
